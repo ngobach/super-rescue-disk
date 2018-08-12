@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+# set -e
 
 DARKGRAY=$'\e[1;30m'
 RED=$'\e[0;31m'
@@ -25,9 +25,25 @@ check_binaries() {
 
 check_grub_platforms() {
 	for x in i386-pc x86_64-efi; do
-		if ! [ -d /usr/lib/grub/${x} ]; then return 1; fi
+		if ! [ -d "/usr/lib/grub/${x}" ]; then return 1; fi
 	done
 	return 0
+}
+
+# Find a partition on a disk matched an label
+declare find_part_out
+find_part() {
+	if ! [ -e "/dev/${1}" ]; then
+		echo "${RED}Error: Invalid disk (${1})${SET}"
+	fi
+	for x in /dev/${1}[0-9]*; do
+		local label=$(lsblk -f $x | tail -n 1 | awk '{ print $3 }')
+		if [[ "${label}" == "$2" ]]; then
+			find_part_out=$(basename $x)
+			return 0
+		fi
+	done
+	return 1
 }
 
 initial_disk() {
@@ -49,16 +65,16 @@ initial_disk() {
 	    -h "1:3:4" \
 	    /dev/$disk 2&>$tmp
 	if [ $? -ne 0 ]; then
-		echo -e "${RED}Failed to run sgdisk on selected disk. Please see the following log${DARKGRAY}"
+		echo -e "${RED}Failed to run ${CYAN}sgdisk${RED} on selected disk. Please check the following log:${DARKGRAY}"
 		cat $tmp
 		echo -e "${SET}"
-		_pause
 		return 1
 	fi
 	partprobe
 	echo -e "${GREEN}Formatting partitions...${SET}"
 	mkfs.fat -F 32 -n "EFI" "/dev/${disk}1" > $tmp 2>&1 &&\
-	mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" > $tmp 2>&1 &&\
+	# mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" > $tmp 2>&1 &&\
+	mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" > $tmp 2>&1 &&\
 	mkfs.ntfs -f -L "Data" "/dev/${disk}4" > $tmp 2>&1
 	if [ $? -ne 0 ]; then
 		echo -e "${RED}Some partitions cannot be formated${DARKGRAY}"
@@ -67,7 +83,60 @@ initial_disk() {
 		return 1
 	fi
 	echo -e "${GREEN}Disk initialized successfully!${SET}"
-	_pause
+	return 0
+}
+
+install_grub() {
+	local disk=$1
+	if ! [ -e "/dev/${disk}" ]; then
+		echo -e "${RED}/dev/${disk} not found!${SET}"
+		return 1
+	fi
+	if [ -e /mnt/efi ] || [ -e /mnt/rescue ]; then
+		# try umounting
+		umount /mnt/{efi,rescue} > /dev/null 2>&1
+		rm -rf /mnt/{efi,rescue} || {
+			echo -e "${RED}'/mnt/efi' and/or '/mnt/rescue' is busy?${SET}"
+			return 1
+		}
+	fi
+	mkdir /mnt/{efi,rescue}
+	local efi_path=""
+	local rescue_path=""
+	find_part "${disk}" "Rescue" || {
+		echo "${RED}Partition with label 'Rescue' not found on disk (${disk}).${SET}"
+		return 1
+	}
+	mount "/dev/$find_part_out" /mnt/rescue && {
+		rescue_path="/mnt/rescue"
+	} || {
+		echo "${RED}${find_part_out} is unmountable.${SET}"
+		return 1
+	}
+	find_part "${disk}" "EFI" && {
+		mount "/dev/$find_part_out" /mnt/efi && {
+			efi_path="/mnt/efi"
+		} || {
+			echo "${RED}${find_part_out} is unmountable.${SET}"
+			return 1
+		}
+	} || {
+		echo "${RED}Warning: EFI partition fallback to Rescue partition (${rescue}).${SET}"
+		efi_path=$rescue_path
+	}
+
+	echo "EFI    mount at: ${GREEN}${efi_path}${SET}"
+	echo "Rescue mount at: ${GREEN}${rescue_path}${SET}"
+	echo "${DARKGRAY}Installing grub...${SET}"
+	for platform in "i386-pc" "x86_64-efi"; do
+		grub-install --boot-directory="${rescue_path}/boot" --efi-directory="${efi_path}" --target="${platform}" "/dev/${disk}" > /dev/null 2>&1 || {
+			echo "${RED}Failed to install grub platform '${platform}'.${SET}"
+			return 1
+		}
+	done
+	echo "${GREEN}Installation finished.${SET}"
+	umount /mnt/{efi,rescue} > /dev/null 2>&1
+	rmdir /mnt/{efi,rescue} > /dev/null 2>&1
 	return 0
 }
 
@@ -117,6 +186,14 @@ menu() {
 					;;
 				i)
 					initial_disk $disk
+					_pause
+					if [ $? -ne 0 ]; then
+						exit $?
+					fi
+					;;
+				g)
+					install_grub $disk
+					_pause
 					if [ $? -ne 0 ]; then
 						exit $?
 					fi
@@ -152,4 +229,3 @@ elif ! check_grub_platforms; then
 fi
 
 menu
-# initial_disk sdb
