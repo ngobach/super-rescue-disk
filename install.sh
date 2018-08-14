@@ -15,7 +15,7 @@ WHITE=$'\e[1;37m'
 SET=$'\e[0m'
 
 _pause() {
-	read -p "${YELLOW}Press [enter] to continue${SET}"
+	read -p "${YELLOW}Press [enter] to continue${SET}" -n 1
 }
 
 check_binaries() {
@@ -144,6 +144,34 @@ install_grub() {
 	return 0
 }
 
+copy_assets() {
+ 	[ -e "$(pwd)/install.sh" ] || {
+		echo "${RED}PWD doesn't contain install.sh${SET}"
+		return 1
+	}
+	find_part $1 "Rescue" || {
+		echo "${RED}Rescue partition not found.${SET}"
+		return 1
+	}
+	local partition=$find_part_out
+	rm -rf /mnt/rescue && mkdir /mnt/rescue || {
+		echo "${RED}Cannot remove /mnt/rescue.${SET}"
+		return 1
+	}
+	echo "Mounting /dev/${partition} at /mnt/rescue"
+	mount "/dev/${partition}" "/mnt/rescue"
+	for dir in *; do
+		if [ -d "${dir}" ]; then
+			echo "${BLUE}Copying \"${dir}\"...${SET}"
+			rsync -av --progress "${dir}/" "/mnt/rescue"
+		fi
+	done
+	echo "Unmounting /dev/${partition}"
+	umount "/dev/${partition}"
+	rmdir /mnt/rescue
+	echo "${GREEN}Files copied successfully.${SET}"
+}
+
 menu() {
 	local disk
 	local answer
@@ -201,6 +229,14 @@ menu() {
 					if [ $? -ne 0 ]; then
 						exit $?
 					fi
+					;;
+				c)
+					copy_assets $disk
+					_pause
+					;;
+				a)
+					yes | initial_disk $disk && install_grub $disk && copy_assets $disk
+					_pause
 					;;
 				q)
 					echo "${CYAN}Bye bye${SET}"
