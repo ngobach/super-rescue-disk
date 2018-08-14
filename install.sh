@@ -63,7 +63,7 @@ initial_disk() {
 	    -n 3:+0:+2G -t 3:0700 -c 3:"Rescue" \
 	    -n 4:+0:-0 -t 4:0700 -c 4:"Data" \
 	    -h "1:3:4" \
-	    /dev/$disk 2&>$tmp
+	    /dev/$disk &> $tmp
 	if [ $? -ne 0 ]; then
 		echo -e "${RED}Failed to run ${CYAN}sgdisk${RED} on selected disk. Please check the following log:${DARKGRAY}"
 		cat $tmp
@@ -72,10 +72,10 @@ initial_disk() {
 	fi
 	partprobe
 	echo -e "${GREEN}Formatting partitions...${SET}"
-	mkfs.fat -F 32 -n "EFI" "/dev/${disk}1" > $tmp 2>&1 &&\
-	# mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" > $tmp 2>&1 &&\
-	mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" > $tmp 2>&1 &&\
-	mkfs.ntfs -f -L "Data" "/dev/${disk}4" > $tmp 2>&1
+	mkfs.fat -F 32 -n "EFI" "/dev/${disk}1" &> $tmp &&\
+	# mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" &> $tmp &&\
+	mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" &> $tmp &&\
+	mkfs.ntfs -f -L "Data" "/dev/${disk}4" &> $tmp
 	if [ $? -ne 0 ]; then
 		echo -e "${RED}Some partitions cannot be formated${DARKGRAY}"
 		cat $tmp
@@ -88,13 +88,14 @@ initial_disk() {
 
 install_grub() {
 	local disk=$1
+	local tmp=$(mktemp)
 	if ! [ -e "/dev/${disk}" ]; then
 		echo -e "${RED}/dev/${disk} not found!${SET}"
 		return 1
 	fi
 	if [ -e /mnt/efi ] || [ -e /mnt/rescue ]; then
 		# try umounting
-		umount /mnt/{efi,rescue} > /dev/null 2>&1
+		umount /mnt/{efi,rescue} &> /dev/null
 		rm -rf /mnt/{efi,rescue} || {
 			echo -e "${RED}'/mnt/efi' and/or '/mnt/rescue' is busy?${SET}"
 			return 1
@@ -121,7 +122,7 @@ install_grub() {
 			return 1
 		}
 	} || {
-		echo "${RED}Warning: EFI partition fallback to Rescue partition (${rescue}).${SET}"
+		echo "${RED}Warning: EFI partition path fallback to Rescue partition mount path (${rescue_path}).${SET}"
 		efi_path=$rescue_path
 	}
 
@@ -129,14 +130,17 @@ install_grub() {
 	echo "Rescue mount at: ${GREEN}${rescue_path}${SET}"
 	echo "${DARKGRAY}Installing grub...${SET}"
 	for platform in "i386-pc" "x86_64-efi"; do
-		grub-install --boot-directory="${rescue_path}/boot" --efi-directory="${efi_path}" --target="${platform}" "/dev/${disk}" > /dev/null 2>&1 || {
+		grub-install --boot-directory="${rescue_path}/boot" --efi-directory="${efi_path}" --target="${platform}" "/dev/${disk}" > $tmp 2>&1 || {
 			echo "${RED}Failed to install grub platform '${platform}'.${SET}"
+			echo -n "${DARKGRAY}"
+			cat $tmp
+			echo -n "${SET}"
 			return 1
 		}
 	done
 	echo "${GREEN}Installation finished.${SET}"
-	umount /mnt/{efi,rescue} > /dev/null 2>&1
-	rmdir /mnt/{efi,rescue} > /dev/null 2>&1
+	umount /mnt/{efi,rescue} &> /dev/null
+	rmdir /mnt/{efi,rescue} &> /dev/null
 	return 0
 }
 
