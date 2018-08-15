@@ -59,7 +59,7 @@ initial_disk() {
   tmp=$(mktemp)
   sgdisk -Zo \
       -n 2:2048:+300M -t 2:ef00 -c 2:"EFI" \
-      -n 9:+0:+10M -t 9:ef02 -c 9:"BIOS Boot" \
+      -n 9:+0:+10M -t 9:ef02 -c 9:"BIOS Boot" -A 9:set:62 \
       -n 3:+0:+2G -t 3:0700 -c 3:"Rescue" \
       -n 1:+0:-0 -t 1:0700 -c 1:"Data" \
       -h "1:2:3" \
