@@ -62,7 +62,7 @@ initial_disk() {
       -n 9:+0:+10M -t 9:ef02 -c 9:"BIOS Boot" -A 9:set:62 \
       -n 3:+0:+2G -t 3:0700 -c 3:"Rescue" \
       -n 1:+0:-0 -t 1:0700 -c 1:"Data" \
-      -h "1:2:3" \
+      -h 1:2:3 \
       /dev/$disk &> $tmp
   if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to run ${CYAN}sgdisk${RED} on selected disk. Please check the following log:${DARKGRAY}"
@@ -72,10 +72,10 @@ initial_disk() {
   fi
   partprobe
   echo -e "${GREEN}Formatting partitions...${SET}"
-  mkfs.fat -F 32 -n "EFI" "/dev/${disk}1" &> $tmp &&\
+  mkfs.fat -F 32 -n "EFI" "/dev/${disk}2" &> $tmp &&\
   mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" &> $tmp &&\
   # mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" &> $tmp &&\
-  mkfs.ntfs -f -L "Data" "/dev/${disk}4" &> $tmp
+  mkfs.ntfs -f -L "Data" "/dev/${disk}1" &> $tmp
   if [ $? -ne 0 ]; then
     echo -e "${RED}Some partitions cannot be formated${DARKGRAY}"
     cat $tmp
@@ -138,6 +138,8 @@ install_grub() {
       return 1
     }
   done
+  mkdir -p "${efi_path}/EFI/BOOT"
+  cp "${efi_path}/EFI/UBUNTU/GRUBX64.EFI" "${efi_path}/EFI/BOOT/BOOTX64.EFI"
   echo "${GREEN}Installation finished.${SET}"
   umount /mnt/{efi,rescue} &> /dev/null
   rmdir /mnt/{efi,rescue} &> /dev/null
