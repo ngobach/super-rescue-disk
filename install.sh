@@ -58,11 +58,11 @@ initial_disk() {
   fi
   tmp=$(mktemp)
   sgdisk -Zo \
-        -n 1:2048:+300M -t 1:ef00 -c 1:"EFI" \
-      -n 2:+0:+10M -t 2:ef02 -c 2:"BIOS Boot" \
+      -n 2:2048:+300M -t 2:ef00 -c 2:"EFI" \
+      -n 9:+0:+10M -t 9:ef02 -c 9:"BIOS Boot" \
       -n 3:+0:+2G -t 3:0700 -c 3:"Rescue" \
-      -n 4:+0:-0 -t 4:0700 -c 4:"Data" \
-      -h "1:3:4" \
+      -n 1:+0:-0 -t 1:0700 -c 1:"Data" \
+      -h "1:2:3" \
       /dev/$disk &> $tmp
   if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to run ${CYAN}sgdisk${RED} on selected disk. Please check the following log:${DARKGRAY}"
@@ -73,8 +73,8 @@ initial_disk() {
   partprobe
   echo -e "${GREEN}Formatting partitions...${SET}"
   mkfs.fat -F 32 -n "EFI" "/dev/${disk}1" &> $tmp &&\
-  # mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" &> $tmp &&\
-  mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" &> $tmp &&\
+  mkfs.fat -F 32 -n "Rescue" "/dev/${disk}3" &> $tmp &&\
+  # mkfs.ntfs -f -L "Rescue" "/dev/${disk}3" &> $tmp &&\
   mkfs.ntfs -f -L "Data" "/dev/${disk}4" &> $tmp
   if [ $? -ne 0 ]; then
     echo -e "${RED}Some partitions cannot be formated${DARKGRAY}"
