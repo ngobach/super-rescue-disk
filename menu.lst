@@ -16,6 +16,24 @@ map /Bootie/Hikari_PE_X64_V8.53_R2_EN.iso (0xff)
 map --hook
 chainloader (0xff)
 
+title Windows 7 PE
+find --set-root /Bootie/Windows7PESuperLite50MB.iso
+map /Bootie/Windows7PESuperLite50MB.iso (0xff)
+map --hook
+chainloader (0xff)
+
+title Windows XP PE (LiveXP)
+find --set-root /Bootie/LiveXP.iso
+map /Bootie/LiveXP.iso (0xff)
+map --hook
+chainloader (0xff)
+
+title Windows XP PE (XPE)
+find --set-root /Bootie/WinXPE.ISO
+map /Bootie/WinXPE.ISO (0xff)
+map --hook
+chainloader (0xff)
+
 title Grub File Manager
 find --set-root /Bootie/grubfm_multiarch.iso
 map /Bootie/grubfm_multiarch.iso (0xff)
