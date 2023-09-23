@@ -1,0 +1,39 @@
+# Welcome to Bootie
+timeout 30
+color 0x19 0x0f 0x0f 0x0f
+color standard=0x0a border=0xf
+graphicsmode -1 || graphicsmode -1 640:800 480:600 24:32 || graphicsmode -1 -1 -1 24:32
+
+title Hikari PE v9
+find --set-root /Bootie/Hikari_PE_X64_V9.0_R2_EN.iso
+map /Bootie/Hikari_PE_X64_V9.0_R2_EN.iso (0xff)
+map --hook
+chainloader (0xff)
+
+title Hikari PE v8
+find --set-root /Bootie/Hikari_PE_X64_V8.53_R2_EN.iso
+map /Bootie/Hikari_PE_X64_V8.53_R2_EN.iso (0xff)
+map --hook
+chainloader (0xff)
+
+title Grub File Manager
+find --set-root /Bootie/grubfm_multiarch.iso
+map /Bootie/grubfm_multiarch.iso (0xff)
+map --hook
+chainloader (0xff)
+
+title Opencore
+find --set-root /EFI/OC/Opencore.efi
+chainloader /EFI/OC/Opencore.efi
+
+title Modified GRUB shell
+find --set-root /EFI/Tools/modGRUBShell.efi
+chainloader /EFI/Tools/modGRUBShell.efi
+
+title Reboot
+echo Rebooting...
+reboot
+
+title Poweroff
+echo Powering off...
+halt
